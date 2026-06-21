@@ -1,4 +1,4 @@
-const API = localStorage.getItem('API_URL') || 'http://127.0.0.1:8000';
+const API = 'https://datainsight-sports-analytics.onrender.com';
 let token = localStorage.getItem('token');
 let chart;
 const $ = s => document.querySelector(s);
