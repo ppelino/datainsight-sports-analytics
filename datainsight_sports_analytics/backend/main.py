@@ -204,6 +204,8 @@ def create_gameplan(data: GamePlanIn, db: Session = Depends(get_db), user: User 
 @app.get("/api/dashboard")
 def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     matches = owned(db.query(Match), user).all()
+    athletes = owned(db.query(Athlete), user).all()
+    events = owned(db.query(ScoutEvent), user).all()
 
     total = len(matches)
     wins = sum(1 for m in matches if m.goals_for > m.goals_against)
@@ -214,29 +216,55 @@ def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_us
     ga = sum(m.goals_against for m in matches)
     saldo = gf - ga
 
-    aproveitamento = 0
-    if total > 0:
-        aproveitamento = round(((wins * 3 + draws) / (total * 3)) * 100, 1)
-
-    events = owned(db.query(ScoutEvent), user).all()
+    aproveitamento = round(((wins * 3 + draws) / (total * 3)) * 100, 1) if total > 0 else 0
+    media_gols_pro = round(gf / total, 2) if total > 0 else 0
+    media_gols_contra = round(ga / total, 2) if total > 0 else 0
 
     by_event = {}
+    by_zone = {}
+    by_athlete = {}
+
     for e in events:
         by_event[e.event_type] = by_event.get(e.event_type, 0) + 1
+
+        if e.zone:
+            by_zone[e.zone] = by_zone.get(e.zone, 0) + 1
+
+        if e.athlete_id:
+            by_athlete[e.athlete_id] = by_athlete.get(e.athlete_id, 0) + 1
+
+    athlete_names = {a.id: a.name for a in athletes}
+
+    ranking_athletes = [
+        {
+            "athlete_id": athlete_id,
+            "name": athlete_names.get(athlete_id, "Atleta não identificado"),
+            "events": total_events
+        }
+        for athlete_id, total_events in by_athlete.items()
+    ]
+
+    ranking_athletes = sorted(
+        ranking_athletes,
+        key=lambda x: x["events"],
+        reverse=True
+    )[:5]
 
     last_matches = [
         {
             "date": str(m.match_date),
             "opponent": m.opponent,
             "score": f"{m.goals_for} x {m.goals_against}",
-            "formation": m.formation or ""
+            "formation": m.formation or "",
+            "competition": m.competition or "",
+            "location": m.location or ""
         }
         for m in matches[:5]
     ]
 
     return {
         "teams": owned(db.query(Team), user).count(),
-        "athletes": owned(db.query(Athlete), user).count(),
+        "athletes": len(athletes),
         "matches": total,
         "wins": wins,
         "draws": draws,
@@ -245,6 +273,10 @@ def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_us
         "goals_against": ga,
         "saldo": saldo,
         "aproveitamento": aproveitamento,
+        "media_gols_pro": media_gols_pro,
+        "media_gols_contra": media_gols_contra,
         "event_counts": by_event,
+        "zone_counts": by_zone,
+        "ranking_athletes": ranking_athletes,
         "last_matches": last_matches
     }
