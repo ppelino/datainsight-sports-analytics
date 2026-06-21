@@ -24,5 +24,96 @@ async function loadOpponents(){ const data=await api('/api/opponents',{headers:a
 async function saveOpponent(e){ e.preventDefault(); await api('/api/opponents',{method:'POST',headers:authHeaders(),body:JSON.stringify(formObj(e.target))}); e.target.reset(); refresh(); }
 async function loadPlans(){ const data=await api('/api/gameplans',{headers:authHeaders()}); $('#planList').innerHTML=data.map(x=>`<div class=item><b>${x.opponent} - ${x.recommended_formation||''}</b><p><b>Defesa:</b> ${x.defensive_strategy||''}<br><b>Ataque:</b> ${x.offensive_strategy||''}<br><b>Marcação:</b> ${x.individual_marking||''}<br><b>Bola parada:</b> ${x.set_piece_plan||''}<br><b>Sugestão:</b> ${x.ai_suggestion||''}</p></div>`).join(''); }
 async function savePlan(e){ e.preventDefault(); await api('/api/gameplans',{method:'POST',headers:authHeaders(),body:JSON.stringify(formObj(e.target))}); e.target.reset(); refresh(); }
-async function loadDashboard(){ const d=await api('/api/dashboard',{headers:authHeaders()}); $('#cards').innerHTML=[['Times',d.teams],['Atletas',d.athletes],['Jogos',d.matches],['Vitórias',d.wins],['Empates',d.draws],['Derrotas',d.losses],['Gols pró',d.goals_for],['Gols contra',d.goals_against]].map(x=>`<div class=metric><span>${x[0]}</span><br><b>${x[1]}</b></div>`).join(''); const labels=Object.keys(d.event_counts); const vals=Object.values(d.event_counts); if(chart) chart.destroy(); chart=new Chart($('#chart'),{type:'bar',data:{labels,datasets:[{label:'Eventos de scout',data:vals}]},options:{responsive:true,plugins:{legend:{display:false}}}}); }
-boot();
+async function loadDashboard(){
+    const d = await api('/api/dashboard',{headers:authHeaders()});
+
+    $('#cards').innerHTML = [
+        ['⚽ Times', d.teams],
+        ['🏃 Atletas', d.athletes],
+        ['🏆 Jogos', d.matches],
+        ['✅ Vitórias', d.wins],
+        ['🤝 Empates', d.draws],
+        ['❌ Derrotas', d.losses],
+        ['🥅 Gols pró', d.goals_for],
+        ['🛡️ Gols contra', d.goals_against],
+        ['📊 Saldo', d.saldo],
+        ['🔥 Aproveitamento', (d.aproveitamento || 0) + '%'],
+        ['⚽ Média GP', d.media_gols_pro || 0],
+        ['🧤 Média GC', d.media_gols_contra || 0]
+    ].map(x=>`
+        <div class="metric">
+            <span>${x[0]}</span>
+            <b>${x[1]}</b>
+        </div>
+    `).join('');
+
+    const labels = Object.keys(d.event_counts || {});
+    const vals = Object.values(d.event_counts || {});
+
+    if(chart) chart.destroy();
+
+    chart = new Chart($('#chart'),{
+        type:'bar',
+        data:{
+            labels: labels.length ? labels : ['Sem scout'],
+            datasets:[{
+                label:'Eventos de scout',
+                data: vals.length ? vals : [0]
+            }]
+        },
+        options:{
+            responsive:true,
+            plugins:{
+                legend:{display:false},
+                title:{
+                    display:true,
+                    text:'Eventos de Scout por Tipo'
+                }
+            },
+            scales:{
+                y:{beginAtZero:true}
+            }
+        }
+    });
+
+    if(!document.querySelector('#dashExtras')){
+        $('#dash').insertAdjacentHTML('beforeend',`
+            <div id="dashExtras" class="grid" style="margin-top:25px;"></div>
+        `);
+    }
+
+    $('#dashExtras').innerHTML = `
+        <div class="item">
+            <b>🏆 Últimos jogos</b>
+            ${
+                d.last_matches && d.last_matches.length
+                ? d.last_matches.map(m=>`
+                    <p>${m.date} - ${m.opponent} | ${m.score} | ${m.formation || ''}</p>
+                `).join('')
+                : '<p>Nenhum jogo cadastrado ainda.</p>'
+            }
+        </div>
+
+        <div class="item">
+            <b>🥇 Ranking de atletas</b>
+            ${
+                d.ranking_athletes && d.ranking_athletes.length
+                ? d.ranking_athletes.map((a,i)=>`
+                    <p>${i+1}. ${a.name} - ${a.events} eventos</p>
+                `).join('')
+                : '<p>Nenhum evento de atleta registrado ainda.</p>'
+            }
+        </div>
+
+        <div class="item">
+            <b>🗺️ Zonas mais usadas</b>
+            ${
+                d.zone_counts && Object.keys(d.zone_counts).length
+                ? Object.entries(d.zone_counts).map(([zone,total])=>`
+                    <p>${zone}: ${total} ações</p>
+                `).join('')
+                : '<p>Nenhuma zona registrada ainda.</p>'
+            }
+        </div>
+    `;
+}
