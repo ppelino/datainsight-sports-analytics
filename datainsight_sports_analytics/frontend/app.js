@@ -4,6 +4,7 @@ let token = localStorage.getItem('token');
 let chart;
 
 const $ = s => document.querySelector(s);
+
 const authHeaders = () => ({
     'Content-Type': 'application/json',
     'Authorization': 'Bearer ' + token
@@ -11,6 +12,7 @@ const authHeaders = () => ({
 
 async function api(path, opts = {}) {
     const r = await fetch(API + path, opts);
+
     if (!r.ok) {
         let msg = 'Erro';
         try {
@@ -19,6 +21,7 @@ async function api(path, opts = {}) {
         } catch {}
         throw new Error(msg);
     }
+
     return r.json();
 }
 
@@ -49,6 +52,7 @@ async function register() {
                 password: $('#password').value
             })
         });
+
         token = r.token;
         localStorage.setItem('token', token);
         boot();
@@ -67,6 +71,7 @@ async function login() {
                 password: $('#password').value
             })
         });
+
         token = r.token;
         localStorage.setItem('token', token);
         boot();
@@ -77,13 +82,16 @@ async function login() {
 
 async function boot() {
     if (!token) return;
+
     $('#auth').classList.add('hidden');
     $('#app').classList.remove('hidden');
+
     await refresh();
 }
 
 async function refresh() {
     if (!token) return;
+
     await Promise.all([
         loadTeams(),
         loadAthletes(),
@@ -98,33 +106,47 @@ async function refresh() {
 function opt(select, data, label) {
     document.querySelectorAll(select).forEach(s => {
         const val = s.value;
+
         s.innerHTML = '<option value="">Selecione</option>' +
             data.map(x => `<option value="${x.id}">${label(x)}</option>`).join('');
+
         s.value = val;
     });
 }
 
 function setForm(formSelector, data) {
     const form = document.querySelector(formSelector);
+
     Object.keys(data).forEach(k => {
-        if (form.elements[k]) form.elements[k].value = data[k] ?? '';
+        if (form.elements[k]) {
+            form.elements[k].value = data[k] ?? '';
+        }
     });
+
     form.dataset.editId = data.id;
     form.querySelector('button').textContent = 'Atualizar';
-    window.scrollTo({top: form.offsetTop - 120, behavior: 'smooth'});
+
+    window.scrollTo({
+        top: form.offsetTop - 120,
+        behavior: 'smooth'
+    });
 }
 
 function clearForm(form) {
     form.reset();
     delete form.dataset.editId;
-    form.querySelector('button').textContent =
-        form.dataset.label || form.querySelector('button').textContent;
+    form.querySelector('button').textContent = form.dataset.label || 'Salvar';
 }
 
 async function excluir(path, nome) {
     if (!confirm(`Deseja excluir ${nome}?`)) return;
+
     try {
-        await api(path, {method: 'DELETE', headers: authHeaders()});
+        await api(path, {
+            method: 'DELETE',
+            headers: authHeaders()
+        });
+
         await refresh();
     } catch (e) {
         alert(e.message);
@@ -133,7 +155,10 @@ async function excluir(path, nome) {
 
 /* TIMES */
 async function loadTeams() {
-    const data = await api('/api/teams', {headers: authHeaders()});
+    const data = await api('/api/teams', {
+        headers: authHeaders()
+    });
+
     opt('select[name="team_id"]', data, x => x.name);
 
     $('#teamList').innerHTML = data.map(x => `
@@ -143,28 +168,13 @@ async function loadTeams() {
             <p>${x.notes || ''}</p>
             <button onclick='setForm("#teams form", ${JSON.stringify(x)})'>Editar</button>
             <button onclick="excluir('/api/teams/${x.id}','este time')">Excluir</button>
-            async function baixarPlanoPDF(id){
-    const r = await fetch(`${API}/api/gameplans/${id}/pdf`, {
-        headers: {
-            'Authorization': 'Bearer ' + token
-        }
-    });
-
-    if(!r.ok){
-        alert('Erro ao gerar PDF');
-        return;
-    }
-
-    const blob = await r.blob();
-    const url = window.URL.createObjectURL(blob);
-    window.open(url, '_blank');
-}
         </div>
     `).join('');
 }
 
 async function saveTeam(e) {
     e.preventDefault();
+
     const form = e.target;
     const id = form.dataset.editId;
     const method = id ? 'PUT' : 'POST';
@@ -182,14 +192,20 @@ async function saveTeam(e) {
 
 /* ATLETAS */
 async function loadAthletes() {
-    const data = await api('/api/athletes', {headers: authHeaders()});
+    const data = await api('/api/athletes', {
+        headers: authHeaders()
+    });
+
     opt('select[name="athlete_id"]', data, x => x.name + ' - ' + (x.position || ''));
 
     $('#athleteList').innerHTML = data.map(x => `
         <div class="item">
             <b>${x.name}</b><br>
             <small>${x.position || ''} | ${x.dominant_foot || ''} | ${x.age || 0} anos | ${x.height || 0}m | ${x.weight || 0}kg</small>
-            <p><b>Fortes:</b> ${x.strengths || ''}<br><b>Melhorar:</b> ${x.weaknesses || ''}</p>
+            <p>
+                <b>Fortes:</b> ${x.strengths || ''}<br>
+                <b>Melhorar:</b> ${x.weaknesses || ''}
+            </p>
             <button onclick='setForm("#athletes form", ${JSON.stringify(x)})'>Editar</button>
             <button onclick="excluir('/api/athletes/${x.id}','este atleta')">Excluir</button>
         </div>
@@ -198,12 +214,15 @@ async function loadAthletes() {
 
 async function saveAthlete(e) {
     e.preventDefault();
+
     const form = e.target;
     const id = form.dataset.editId;
     const o = formObj(form);
 
-    ['team_id', 'age'].forEach(k => o[k] = Number(o[k] || 0));
-    ['height', 'weight'].forEach(k => o[k] = parseFloat(o[k] || 0));
+    o.team_id = Number(o.team_id || 0);
+    o.age = Number(o.age || 0);
+    o.height = parseFloat(o.height || 0);
+    o.weight = parseFloat(o.weight || 0);
 
     await api(id ? `/api/athletes/${id}` : '/api/athletes', {
         method: id ? 'PUT' : 'POST',
@@ -217,7 +236,10 @@ async function saveAthlete(e) {
 
 /* JOGOS */
 async function loadMatches() {
-    const data = await api('/api/matches', {headers: authHeaders()});
+    const data = await api('/api/matches', {
+        headers: authHeaders()
+    });
+
     opt('select[name="match_id"]', data, x => `${x.match_date} - ${x.opponent}`);
 
     $('#matchList').innerHTML = data.map(x => `
@@ -233,11 +255,14 @@ async function loadMatches() {
 
 async function saveMatch(e) {
     e.preventDefault();
+
     const form = e.target;
     const id = form.dataset.editId;
     const o = formObj(form);
 
-    ['team_id', 'goals_for', 'goals_against'].forEach(k => o[k] = Number(o[k] || 0));
+    o.team_id = Number(o.team_id || 0);
+    o.goals_for = Number(o.goals_for || 0);
+    o.goals_against = Number(o.goals_against || 0);
 
     await api(id ? `/api/matches/${id}` : '/api/matches', {
         method: id ? 'PUT' : 'POST',
@@ -251,7 +276,9 @@ async function saveMatch(e) {
 
 /* SCOUT */
 async function loadScout() {
-    const data = await api('/api/scout', {headers: authHeaders()});
+    const data = await api('/api/scout', {
+        headers: authHeaders()
+    });
 
     $('#scoutList').innerHTML = data.map(x => `
         <div class="item">
@@ -266,11 +293,14 @@ async function loadScout() {
 
 async function saveScout(e) {
     e.preventDefault();
+
     const form = e.target;
     const id = form.dataset.editId;
     const o = formObj(form);
 
-    ['match_id', 'athlete_id', 'minute'].forEach(k => o[k] = o[k] ? Number(o[k]) : null);
+    o.match_id = Number(o.match_id || 0);
+    o.athlete_id = o.athlete_id ? Number(o.athlete_id) : null;
+    o.minute = Number(o.minute || 0);
 
     await api(id ? `/api/scout/${id}` : '/api/scout', {
         method: id ? 'PUT' : 'POST',
@@ -284,14 +314,20 @@ async function saveScout(e) {
 
 /* ADVERSÁRIOS */
 async function loadOpponents() {
-    const data = await api('/api/opponents', {headers: authHeaders()});
+    const data = await api('/api/opponents', {
+        headers: authHeaders()
+    });
 
     $('#opponentList').innerHTML = data.map(x => `
         <div class="item">
             <b>${x.opponent}</b><br>
             <small>Formação: ${x.base_formation || ''} | Lado forte: ${x.attack_side || ''}</small>
-            <p><b>Fortes:</b> ${x.strengths || ''}<br><b>Fracos:</b> ${x.weaknesses || ''}<br>
-            <b>Como faz gols:</b> ${x.how_scores || ''}<br><b>Como sofre:</b> ${x.how_concedes || ''}</p>
+            <p>
+                <b>Fortes:</b> ${x.strengths || ''}<br>
+                <b>Fracos:</b> ${x.weaknesses || ''}<br>
+                <b>Como faz gols:</b> ${x.how_scores || ''}<br>
+                <b>Como sofre:</b> ${x.how_concedes || ''}
+            </p>
             <button onclick='setForm("#opponents form", ${JSON.stringify(x)})'>Editar</button>
             <button onclick="excluir('/api/opponents/${x.id}','esta análise')">Excluir</button>
         </div>
@@ -300,6 +336,7 @@ async function loadOpponents() {
 
 async function saveOpponent(e) {
     e.preventDefault();
+
     const form = e.target;
     const id = form.dataset.editId;
 
@@ -313,19 +350,25 @@ async function saveOpponent(e) {
     refresh();
 }
 
-/* PLANOS */
+/* PLANOS DE JOGO */
 async function loadPlans() {
-    const data = await api('/api/gameplans', {headers: authHeaders()});
+    const data = await api('/api/gameplans', {
+        headers: authHeaders()
+    });
 
     $('#planList').innerHTML = data.map(x => `
         <div class="item">
             <b>${x.opponent} - ${x.recommended_formation || ''}</b>
-            <p><b>Defesa:</b> ${x.defensive_strategy || ''}<br>
-            <b>Ataque:</b> ${x.offensive_strategy || ''}<br>
-            <b>Marcação:</b> ${x.individual_marking || ''}<br>
-            <b>Bola parada:</b> ${x.set_piece_plan || ''}<br>
-            <b>Sugestão:</b> ${x.ai_suggestion || ''}</p>
+            <p>
+                <b>Defesa:</b> ${x.defensive_strategy || ''}<br>
+                <b>Ataque:</b> ${x.offensive_strategy || ''}<br>
+                <b>Marcação:</b> ${x.individual_marking || ''}<br>
+                <b>Bola parada:</b> ${x.set_piece_plan || ''}<br>
+                <b>Substituições:</b> ${x.substitutions || ''}<br>
+                <b>Sugestão:</b> ${x.ai_suggestion || ''}
+            </p>
             <button onclick='setForm("#plans form", ${JSON.stringify(x)})'>Editar</button>
+            <button onclick="baixarPlanoPDF(${x.id})">PDF</button>
             <button onclick="excluir('/api/gameplans/${x.id}','este plano')">Excluir</button>
         </div>
     `).join('');
@@ -333,6 +376,7 @@ async function loadPlans() {
 
 async function savePlan(e) {
     e.preventDefault();
+
     const form = e.target;
     const id = form.dataset.editId;
 
@@ -346,9 +390,32 @@ async function savePlan(e) {
     refresh();
 }
 
+async function baixarPlanoPDF(id) {
+    try {
+        const r = await fetch(`${API}/api/gameplans/${id}/pdf`, {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+
+        if (!r.ok) {
+            alert('Erro ao gerar PDF');
+            return;
+        }
+
+        const blob = await r.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+    } catch (e) {
+        alert('Erro ao baixar PDF');
+    }
+}
+
 /* DASHBOARD */
-async function loadDashboard(){
-    const d = await api('/api/dashboard',{headers:authHeaders()});
+async function loadDashboard() {
+    const d = await api('/api/dashboard', {
+        headers: authHeaders()
+    });
 
     $('#cards').innerHTML = [
         ['⚽ Times', d.teams],
@@ -363,7 +430,7 @@ async function loadDashboard(){
         ['🔥 Aproveitamento', (d.aproveitamento || 0) + '%'],
         ['⚽ Média GP', d.media_gols_pro || 0],
         ['🧤 Média GC', d.media_gols_contra || 0]
-    ].map(x=>`
+    ].map(x => `
         <div class="metric">
             <span>${x[0]}</span>
             <b>${x[1]}</b>
@@ -373,34 +440,34 @@ async function loadDashboard(){
     const labels = Object.keys(d.event_counts || {});
     const vals = Object.values(d.event_counts || {});
 
-    if(chart) chart.destroy();
+    if (chart) chart.destroy();
 
-    chart = new Chart($('#chart'),{
-        type:'bar',
-        data:{
+    chart = new Chart($('#chart'), {
+        type: 'bar',
+        data: {
             labels: labels.length ? labels : ['Sem scout'],
-            datasets:[{
-                label:'Eventos de scout',
+            datasets: [{
+                label: 'Eventos de scout',
                 data: vals.length ? vals : [0]
             }]
         },
-        options:{
-            responsive:true,
-            plugins:{
-                legend:{display:false},
-                title:{
-                    display:true,
-                    text:'Eventos de Scout por Tipo'
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {display: false},
+                title: {
+                    display: true,
+                    text: 'Eventos de Scout por Tipo'
                 }
             },
-            scales:{
-                y:{beginAtZero:true}
+            scales: {
+                y: {beginAtZero: true}
             }
         }
     });
 
-    if(!document.querySelector('#dashExtras')){
-        $('#dash').insertAdjacentHTML('beforeend',`
+    if (!document.querySelector('#dashExtras')) {
+        $('#dash').insertAdjacentHTML('beforeend', `
             <div id="dashExtras" class="grid" style="margin-top:25px;"></div>
         `);
     }
@@ -410,7 +477,7 @@ async function loadDashboard(){
             <b>🏆 Últimos jogos</b>
             ${
                 d.last_matches && d.last_matches.length
-                ? d.last_matches.map(m=>`
+                ? d.last_matches.map(m => `
                     <p>${m.date} - ${m.opponent} | ${m.score} | ${m.formation || ''}</p>
                 `).join('')
                 : '<p>Nenhum jogo cadastrado ainda.</p>'
@@ -421,8 +488,8 @@ async function loadDashboard(){
             <b>🥇 Ranking de atletas</b>
             ${
                 d.ranking_athletes && d.ranking_athletes.length
-                ? d.ranking_athletes.map((a,i)=>`
-                    <p>${i+1}. ${a.name} - ${a.events} eventos</p>
+                ? d.ranking_athletes.map((a, i) => `
+                    <p>${i + 1}. ${a.name} - ${a.events} eventos</p>
                 `).join('')
                 : '<p>Nenhum evento de atleta registrado ainda.</p>'
             }
@@ -432,7 +499,7 @@ async function loadDashboard(){
             <b>🗺️ Zonas mais usadas</b>
             ${
                 d.zone_counts && Object.keys(d.zone_counts).length
-                ? Object.entries(d.zone_counts).map(([zone,total])=>`
+                ? Object.entries(d.zone_counts).map(([zone, total]) => `
                     <p>${zone}: ${total} ações</p>
                 `).join('')
                 : '<p>Nenhuma zona registrada ainda.</p>'
