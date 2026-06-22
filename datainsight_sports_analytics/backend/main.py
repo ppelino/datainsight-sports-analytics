@@ -9,7 +9,7 @@ from schemas import RegisterIn, LoginIn, TeamIn, AthleteIn, MatchIn, ScoutEventI
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="DataInsight Sports Analytics", version="1.0.0")
+app = FastAPI(title="DataInsight Sports Analytics", version="1.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -91,6 +91,20 @@ def crud_create(model, payload, user, db):
     db.refresh(obj)
     return obj
 
+def crud_update(model, obj_id, payload, user, db):
+    obj = owned(db.query(model), user).filter(model.id == obj_id).first()
+
+    if not obj:
+        raise HTTPException(404, "Não encontrado")
+
+    for key, value in payload.model_dump().items():
+        setattr(obj, key, value)
+
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+# TIMES
 @app.get("/api/teams")
 def list_teams(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return owned(db.query(Team), user).all()
@@ -98,6 +112,10 @@ def list_teams(db: Session = Depends(get_db), user: User = Depends(get_current_u
 @app.post("/api/teams")
 def create_team(data: TeamIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_create(Team, data, user, db)
+
+@app.put("/api/teams/{id}")
+def update_team(id: int, data: TeamIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return crud_update(Team, id, data, user, db)
 
 @app.delete("/api/teams/{id}")
 def delete_team(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -107,9 +125,9 @@ def delete_team(id: int, db: Session = Depends(get_db), user: User = Depends(get
 
     db.delete(obj)
     db.commit()
-
     return {"ok": True}
 
+# ATLETAS
 @app.get("/api/athletes")
 def list_athletes(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return owned(db.query(Athlete), user).all()
@@ -117,6 +135,10 @@ def list_athletes(db: Session = Depends(get_db), user: User = Depends(get_curren
 @app.post("/api/athletes")
 def create_athlete(data: AthleteIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_create(Athlete, data, user, db)
+
+@app.put("/api/athletes/{id}")
+def update_athlete(id: int, data: AthleteIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return crud_update(Athlete, id, data, user, db)
 
 @app.delete("/api/athletes/{id}")
 def delete_athlete(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -126,9 +148,9 @@ def delete_athlete(id: int, db: Session = Depends(get_db), user: User = Depends(
 
     db.delete(obj)
     db.commit()
-
     return {"ok": True}
 
+# JOGOS
 @app.get("/api/matches")
 def list_matches(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return owned(db.query(Match), user).order_by(Match.match_date.desc()).all()
@@ -136,6 +158,10 @@ def list_matches(db: Session = Depends(get_db), user: User = Depends(get_current
 @app.post("/api/matches")
 def create_match(data: MatchIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_create(Match, data, user, db)
+
+@app.put("/api/matches/{id}")
+def update_match(id: int, data: MatchIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return crud_update(Match, id, data, user, db)
 
 @app.delete("/api/matches/{id}")
 def delete_match(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -145,9 +171,9 @@ def delete_match(id: int, db: Session = Depends(get_db), user: User = Depends(ge
 
     db.delete(obj)
     db.commit()
-
     return {"ok": True}
 
+# SCOUT
 @app.get("/api/scout")
 def list_scout(match_id: int | None = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     q = owned(db.query(ScoutEvent), user)
@@ -161,6 +187,21 @@ def list_scout(match_id: int | None = None, db: Session = Depends(get_db), user:
 def create_scout(data: ScoutEventIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_create(ScoutEvent, data, user, db)
 
+@app.put("/api/scout/{id}")
+def update_scout(id: int, data: ScoutEventIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return crud_update(ScoutEvent, id, data, user, db)
+
+@app.delete("/api/scout/{id}")
+def delete_scout(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    obj = owned(db.query(ScoutEvent), user).filter(ScoutEvent.id == id).first()
+    if not obj:
+        raise HTTPException(404, "Não encontrado")
+
+    db.delete(obj)
+    db.commit()
+    return {"ok": True}
+
+# ADVERSÁRIOS
 @app.get("/api/opponents")
 def list_opponents(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return owned(db.query(OpponentAnalysis), user).all()
@@ -169,6 +210,21 @@ def list_opponents(db: Session = Depends(get_db), user: User = Depends(get_curre
 def create_opponent(data: OpponentIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_create(OpponentAnalysis, data, user, db)
 
+@app.put("/api/opponents/{id}")
+def update_opponent(id: int, data: OpponentIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return crud_update(OpponentAnalysis, id, data, user, db)
+
+@app.delete("/api/opponents/{id}")
+def delete_opponent(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    obj = owned(db.query(OpponentAnalysis), user).filter(OpponentAnalysis.id == id).first()
+    if not obj:
+        raise HTTPException(404, "Não encontrado")
+
+    db.delete(obj)
+    db.commit()
+    return {"ok": True}
+
+# PLANOS DE JOGO
 @app.get("/api/gameplans")
 def list_gameplans(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return owned(db.query(GamePlan), user).all()
@@ -198,9 +254,49 @@ def create_gameplan(data: GamePlanIn, db: Session = Depends(get_db), user: User 
     db.add(obj)
     db.commit()
     db.refresh(obj)
-
     return obj
 
+@app.put("/api/gameplans/{id}")
+def update_gameplan(id: int, data: GamePlanIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    obj = owned(db.query(GamePlan), user).filter(GamePlan.id == id).first()
+
+    if not obj:
+        raise HTTPException(404, "Não encontrado")
+
+    for key, value in data.model_dump().items():
+        setattr(obj, key, value)
+
+    opponent = owned(db.query(OpponentAnalysis), user).filter(
+        OpponentAnalysis.opponent.ilike(data.opponent)
+    ).first()
+
+    suggestion = ""
+
+    if opponent:
+        suggestion = (
+            f"Adversário costuma jogar em {opponent.base_formation or 'formação não informada'}, "
+            f"ataca mais pelo lado {opponent.attack_side or 'não informado'}. "
+            f"Recomenda-se explorar fraquezas: {opponent.weaknesses or 'não informadas'}; "
+            f"atenção aos pontos fortes: {opponent.strengths or 'não informados'}."
+        )
+
+    obj.ai_suggestion = suggestion
+
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+@app.delete("/api/gameplans/{id}")
+def delete_gameplan(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    obj = owned(db.query(GamePlan), user).filter(GamePlan.id == id).first()
+    if not obj:
+        raise HTTPException(404, "Não encontrado")
+
+    db.delete(obj)
+    db.commit()
+    return {"ok": True}
+
+# DASHBOARD
 @app.get("/api/dashboard")
 def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     matches = owned(db.query(Match), user).all()
