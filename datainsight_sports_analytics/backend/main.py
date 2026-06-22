@@ -1,3 +1,9 @@
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -376,3 +382,106 @@ def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_us
         "ranking_athletes": ranking_athletes,
         "last_matches": last_matches
     }
+@app.get("/api/gameplans/{id}/pdf")
+def gameplan_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    plan = owned(db.query(GamePlan), user).filter(GamePlan.id == id).first()
+
+    if not plan:
+        raise HTTPException(404, "Plano de jogo não encontrado")
+
+    buffer = BytesIO()
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "TitleStyle",
+        parent=styles["Title"],
+        textColor=colors.HexColor("#0f766e"),
+        fontSize=22,
+        leading=26,
+        alignment=1
+    )
+
+    subtitle_style = ParagraphStyle(
+        "SubtitleStyle",
+        parent=styles["Heading2"],
+        textColor=colors.HexColor("#0f172a"),
+        fontSize=14,
+        leading=18
+    )
+
+    normal_style = ParagraphStyle(
+        "NormalStyle",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=14
+    )
+
+    story = []
+
+    story.append(Paragraph("DataInsight Sports Analytics PRO", title_style))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Relatório de Plano de Jogo", subtitle_style))
+    story.append(Spacer(1, 16))
+
+    info_data = [
+        ["Adversário", plan.opponent or ""],
+        ["Formação Recomendada", plan.recommended_formation or ""],
+    ]
+
+    info_table = Table(info_data, colWidths=[160, 330])
+    info_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#0f766e")),
+        ("TEXTCOLOR", (0, 0), (0, -1), colors.white),
+        ("BACKGROUND", (1, 0), (1, -1), colors.HexColor("#f8fafc")),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("PADDING", (0, 0), (-1, -1), 8),
+    ]))
+
+    story.append(info_table)
+    story.append(Spacer(1, 18))
+
+    sections = [
+        ("Estratégia Defensiva", plan.defensive_strategy),
+        ("Estratégia Ofensiva", plan.offensive_strategy),
+        ("Marcação Individual", plan.individual_marking),
+        ("Plano de Bola Parada", plan.set_piece_plan),
+        ("Substituições Previstas", plan.substitutions),
+        ("Sugestão Inteligente", plan.ai_suggestion),
+    ]
+
+    for title, text in sections:
+        story.append(Paragraph(title, subtitle_style))
+        story.append(Paragraph(text or "Não informado.", normal_style))
+        story.append(Spacer(1, 12))
+
+    story.append(Spacer(1, 20))
+    story.append(Paragraph(
+        "Documento gerado automaticamente pelo DataInsight Sports Analytics PRO.",
+        normal_style
+    ))
+
+    doc.build(story)
+
+    buffer.seek(0)
+
+    filename = f"plano_jogo_{plan.id}.pdf"
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
