@@ -143,9 +143,21 @@ async function loadTeams() {
             <p>${x.notes || ''}</p>
             <button onclick='setForm("#teams form", ${JSON.stringify(x)})'>Editar</button>
             <button onclick="excluir('/api/teams/${x.id}','este time')">Excluir</button>
-            <button onclick="baixarPlanoPDF(${x.id})">PDF</button>
-            function baixarPlanoPDF(id){
-    window.open(`${API}/api/gameplans/${id}/pdf?token=${token}`, '_blank');
+            async function baixarPlanoPDF(id){
+    const r = await fetch(`${API}/api/gameplans/${id}/pdf`, {
+        headers: {
+            'Authorization': 'Bearer ' + token
+        }
+    });
+
+    if(!r.ok){
+        alert('Erro ao gerar PDF');
+        return;
+    }
+
+    const blob = await r.blob();
+    const url = window.URL.createObjectURL(blob);
+    window.open(url, '_blank');
 }
         </div>
     `).join('');
