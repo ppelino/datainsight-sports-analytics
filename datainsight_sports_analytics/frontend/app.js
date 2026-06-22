@@ -143,6 +143,10 @@ async function loadTeams() {
             <p>${x.notes || ''}</p>
             <button onclick='setForm("#teams form", ${JSON.stringify(x)})'>Editar</button>
             <button onclick="excluir('/api/teams/${x.id}','este time')">Excluir</button>
+            <button onclick="baixarPlanoPDF(${x.id})">PDF</button>
+            function baixarPlanoPDF(id){
+    window.open(`${API}/api/gameplans/${id}/pdf?token=${token}`, '_blank');
+}
         </div>
     `).join('');
 }
