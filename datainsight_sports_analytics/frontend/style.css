@@ -3,7 +3,7 @@
 body{
   min-height:100vh;
   background:
-    linear-gradient(90deg,rgba(2,6,23,.18),rgba(2,6,23,.86)),
+    linear-gradient(90deg,rgba(2,6,23,.15),rgba(2,6,23,.82)),
     url('./assets/login.png');
   background-size:cover;
   background-position:center center;
@@ -38,22 +38,26 @@ button:hover{filter:brightness(1.08)}
 
 .hidden{display:none!important}
 
-/* LOGIN */
+/* LOGIN CENTRALIZADO */
 #auth{
-  width:390px;
-  margin:80px 11% 0 auto;
-  padding:32px;
-  border-radius:24px;
-  background:rgba(10,18,35,.78);
+  width:420px;
+  min-height:auto;
+  margin:0;
+  padding:34px;
+  border-radius:26px;
+  background:rgba(10,18,35,.82);
   border:1px solid rgba(94,234,212,.30);
   box-shadow:0 25px 80px rgba(0,0,0,.65);
-  backdrop-filter:blur(10px);
-  position:relative;
+  backdrop-filter:blur(12px);
+  position:absolute;
+  top:54%;
+  left:50%;
+  transform:translate(-50%,-50%);
   z-index:2;
 }
 
 #auth h2{
-  font-size:32px;
+  font-size:34px;
   color:white;
   margin-bottom:22px;
 }
@@ -62,7 +66,7 @@ button:hover{filter:brightness(1.08)}
   width:100%;
   display:block;
   margin-bottom:12px;
-  background:rgba(2,6,23,.88);
+  background:rgba(2,6,23,.90);
   color:white;
   border:1px solid rgba(148,163,184,.45);
   border-radius:14px;
@@ -82,9 +86,7 @@ button:hover{filter:brightness(1.08)}
   margin-top:8px;
 }
 
-#auth button{
-  flex:1;
-}
+#auth button{flex:1}
 
 /* SISTEMA LOGADO */
 #app{
@@ -188,16 +190,26 @@ canvas{
   margin-top:20px;
 }
 
+/* RESPONSIVO */
 @media(max-width:900px){
   #auth{
     width:90%;
-    margin:60px auto;
+    max-width:420px;
+    top:56%;
   }
 }
 
 @media(max-width:800px){
   header{display:block;text-align:center}
   header button{margin-top:12px;width:100%}
+
+  #auth{
+    position:relative;
+    top:auto;
+    left:auto;
+    transform:none;
+    margin:50px auto;
+  }
 
   #app{display:block}
   nav{width:100%;flex-direction:row;overflow:auto}
