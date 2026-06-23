@@ -391,24 +391,20 @@ async function savePlan(e) {
 }
 
 async function baixarPlanoPDF(id) {
-    try {
-        const r = await fetch(`${API}/api/gameplans/${id}/pdf`, {
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-
-        if (!r.ok) {
-            alert('Erro ao gerar PDF');
-            return;
+    const r = await fetch(`${API}/api/gameplans/${id}/pdf`, {
+        headers: {
+            'Authorization': 'Bearer ' + token
         }
+    });
 
-        const blob = await r.blob();
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-    } catch (e) {
-        alert('Erro ao baixar PDF');
+    if (!r.ok) {
+        alert('Erro ao gerar PDF');
+        return;
     }
+
+    const blob = await r.blob();
+    const url = window.URL.createObjectURL(blob);
+    window.open(url, '_blank');
 }
 
 /* DASHBOARD */
