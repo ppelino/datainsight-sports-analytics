@@ -7,7 +7,6 @@
     <title>⚽ DataInsight Sports Analytics PRO</title>
 
     <link rel="stylesheet" href="style.css">
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -25,12 +24,10 @@
 <section id="auth" class="card auth">
     <h2>Acesso</h2>
 
-    <input id="name" placeholder="Nome">
     <input id="email" placeholder="E-mail">
     <input id="password" type="password" placeholder="Senha">
 
     <div style="display:flex;gap:10px;margin-top:15px;">
-        <button onclick="register()">Cadastrar</button>
         <button onclick="login()">Entrar</button>
     </div>
 </section>
@@ -49,9 +46,7 @@
 
     <section id="dash" class="page card">
         <h2>Dashboard</h2>
-
         <div id="cards" class="grid"></div>
-
         <canvas id="chart"></canvas>
     </section>
 
@@ -179,17 +174,12 @@
 
         <form onsubmit="savePlan(event)">
             <input name="opponent" placeholder="Adversário" required>
-
             <input name="recommended_formation" placeholder="Formação Recomendada">
 
             <textarea name="defensive_strategy" placeholder="Estratégia Defensiva"></textarea>
-
             <textarea name="offensive_strategy" placeholder="Estratégia Ofensiva"></textarea>
-
             <textarea name="individual_marking" placeholder="Marcação Individual"></textarea>
-
             <textarea name="set_piece_plan" placeholder="Plano Bola Parada"></textarea>
-
             <textarea name="substitutions" placeholder="Substituições Previstas"></textarea>
 
             <button>Gerar Plano</button>
