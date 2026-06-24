@@ -4,9 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>⚽ DataInsight Sports Analytics PRO</title>
 
     <link rel="stylesheet" href="style.css">
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f766e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Sports PRO">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -59,7 +66,6 @@
             <input name="city" placeholder="Cidade">
             <input name="coach" placeholder="Treinador">
             <textarea name="notes" placeholder="Observações"></textarea>
-
             <button>Salvar time</button>
         </form>
 
@@ -99,7 +105,6 @@
             <input name="location" placeholder="Local">
             <input name="competition" placeholder="Competição">
             <input name="formation" placeholder="Formação">
-
             <input name="goals_for" type="number" placeholder="Gols pró">
             <input name="goals_against" type="number" placeholder="Gols contra">
 
@@ -116,7 +121,6 @@
 
         <form onsubmit="saveScout(event)">
             <select name="match_id" required></select>
-
             <select name="athlete_id"></select>
 
             <input name="minute" type="number" placeholder="Minuto">
@@ -156,10 +160,8 @@
             <textarea name="strong_players" placeholder="Jogadores Destaque"></textarea>
             <textarea name="strengths" placeholder="Pontos Fortes"></textarea>
             <textarea name="weaknesses" placeholder="Pontos Fracos"></textarea>
-
             <textarea name="set_pieces_attack" placeholder="Bola Parada Ofensiva"></textarea>
             <textarea name="set_pieces_defense" placeholder="Bola Parada Defensiva"></textarea>
-
             <textarea name="how_scores" placeholder="Como faz gols"></textarea>
             <textarea name="how_concedes" placeholder="Como sofre gols"></textarea>
 
@@ -191,6 +193,12 @@
 </main>
 
 <script src="app.js"></script>
+
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js');
+}
+</script>
 
 </body>
 </html>
