@@ -4,6 +4,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from xml.sax.saxutils import escape
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -359,13 +360,13 @@ def delete_gameplan(id: int, db: Session = Depends(get_db), user: User = Depends
     db.delete(obj)
     db.commit()
     return {"ok": True}
-@app.get("/api/gameplans/{id}/pdf")
-def gameplan_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    plan = owned(db.query(GamePlan), user).filter(GamePlan.id == id).first()
 
-    if not plan:
-        raise HTTPException(404, "Plano de jogo não encontrado")
+# ========= RELATÓRIOS PDF =========
 
+def safe_text(value):
+    return escape(str(value or "Não informado."))
+
+def make_pdf_response(title_text, subtitle_text, info_rows, sections, filename):
     buffer = BytesIO()
 
     doc = SimpleDocTemplate(
@@ -380,16 +381,16 @@ def gameplan_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(ge
     styles = getSampleStyleSheet()
 
     title = ParagraphStyle(
-        "Title",
+        "PDFTitle",
         parent=styles["Title"],
         fontSize=22,
         textColor=colors.HexColor("#0f766e"),
         alignment=1,
-        spaceAfter=16
+        spaceAfter=14
     )
 
     subtitle = ParagraphStyle(
-        "Subtitle",
+        "PDFSubtitle",
         parent=styles["Heading2"],
         fontSize=14,
         textColor=colors.HexColor("#0f172a"),
@@ -397,51 +398,38 @@ def gameplan_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(ge
     )
 
     normal = ParagraphStyle(
-        "NormalCustom",
+        "PDFNormal",
         parent=styles["Normal"],
         fontSize=10,
         leading=14
     )
 
     story = []
-
     story.append(Paragraph("DataInsight Sports Analytics PRO", title))
-    story.append(Paragraph("Relatório Técnico - Plano de Jogo", subtitle))
+    story.append(Paragraph(safe_text(subtitle_text), subtitle))
     story.append(Spacer(1, 12))
 
-    info = [
-        ["Adversário", plan.opponent or "Não informado"],
-        ["Formação Recomendada", plan.recommended_formation or "Não informada"],
-    ]
-
-    table = Table(info, colWidths=[150, 340])
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#0f766e")),
-        ("TEXTCOLOR", (0, 0), (0, -1), colors.white),
-        ("BACKGROUND", (1, 0), (1, -1), colors.HexColor("#f8fafc")),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("PADDING", (0, 0), (-1, -1), 8),
-    ]))
-
-    story.append(table)
-    story.append(Spacer(1, 18))
-
-    sections = [
-        ("Estratégia Defensiva", plan.defensive_strategy),
-        ("Estratégia Ofensiva", plan.offensive_strategy),
-        ("Marcação Individual", plan.individual_marking),
-        ("Plano de Bola Parada", plan.set_piece_plan),
-        ("Substituições Previstas", plan.substitutions),
-        ("Sugestão Inteligente", plan.ai_suggestion),
-    ]
+    if info_rows:
+        info = [[safe_text(k), safe_text(v)] for k, v in info_rows]
+        table = Table(info, colWidths=[155, 335])
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#0f766e")),
+            ("TEXTCOLOR", (0, 0), (0, -1), colors.white),
+            ("BACKGROUND", (1, 0), (1, -1), colors.HexColor("#f8fafc")),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("PADDING", (0, 0), (-1, -1), 8),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        story.append(table)
+        story.append(Spacer(1, 18))
 
     for heading, text in sections:
-        story.append(Paragraph(heading, subtitle))
-        story.append(Paragraph(text or "Não informado.", normal))
+        story.append(Paragraph(safe_text(heading), subtitle))
+        story.append(Paragraph(safe_text(text), normal))
         story.append(Spacer(1, 10))
 
-    story.append(Spacer(1, 20))
+    story.append(Spacer(1, 18))
     story.append(Paragraph(
         "Documento gerado automaticamente pelo DataInsight Sports Analytics PRO.",
         normal
@@ -453,9 +441,187 @@ def gameplan_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(ge
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f"attachment; filename=plano_jogo_{plan.id}.pdf"
-        }
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/api/teams/{id}/pdf")
+def team_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    team = owned(db.query(Team), user).filter(Team.id == id).first()
+    if not team:
+        raise HTTPException(404, "Time não encontrado")
+
+    athletes = owned(db.query(Athlete), user).filter(Athlete.team_id == id).all()
+    matches = owned(db.query(Match), user).filter(Match.team_id == id).all()
+
+    atletas_txt = "\n".join([f"- {a.name} | {a.position or 'posição não informada'}" for a in athletes]) or "Nenhum atleta cadastrado."
+    jogos_txt = "\n".join([f"- {m.match_date} | {m.opponent} | {m.goals_for} x {m.goals_against}" for m in matches]) or "Nenhum jogo cadastrado."
+
+    return make_pdf_response(
+        "DataInsight Sports Analytics PRO",
+        "Relatório Técnico - Time",
+        [
+            ("Time", team.name),
+            ("Categoria", team.category),
+            ("Cidade", team.city),
+            ("Treinador", team.coach),
+        ],
+        [
+            ("Observações", team.notes),
+            ("Atletas do Time", atletas_txt),
+            ("Jogos do Time", jogos_txt),
+        ],
+        f"time_{team.id}.pdf"
+    )
+
+@app.get("/api/athletes/{id}/pdf")
+def athlete_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    athlete = owned(db.query(Athlete), user).filter(Athlete.id == id).first()
+    if not athlete:
+        raise HTTPException(404, "Atleta não encontrado")
+
+    team = owned(db.query(Team), user).filter(Team.id == athlete.team_id).first()
+    events = owned(db.query(ScoutEvent), user).filter(ScoutEvent.athlete_id == id).all()
+
+    by_event = {}
+    for e in events:
+        by_event[e.event_type] = by_event.get(e.event_type, 0) + 1
+    resumo_eventos = "\n".join([f"- {k}: {v}" for k, v in by_event.items()]) or "Nenhum evento registrado."
+
+    return make_pdf_response(
+        "DataInsight Sports Analytics PRO",
+        "Relatório Técnico - Atleta",
+        [
+            ("Atleta", athlete.name),
+            ("Time", team.name if team else "Não informado"),
+            ("Posição", athlete.position),
+            ("Pé dominante", athlete.dominant_foot),
+            ("Idade", athlete.age),
+            ("Altura", athlete.height),
+            ("Peso", athlete.weight),
+        ],
+        [
+            ("Pontos Fortes", athlete.strengths),
+            ("Pontos a Melhorar", athlete.weaknesses),
+            ("Resumo de Eventos de Scout", resumo_eventos),
+        ],
+        f"atleta_{athlete.id}.pdf"
+    )
+
+@app.get("/api/matches/{id}/pdf")
+def match_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    match = owned(db.query(Match), user).filter(Match.id == id).first()
+    if not match:
+        raise HTTPException(404, "Jogo não encontrado")
+
+    team = owned(db.query(Team), user).filter(Team.id == match.team_id).first()
+    events = owned(db.query(ScoutEvent), user).filter(ScoutEvent.match_id == id).order_by(ScoutEvent.minute.asc()).all()
+    athletes = {a.id: a.name for a in owned(db.query(Athlete), user).all()}
+
+    eventos_txt = "\n".join([
+        f"{e.minute}' - {e.event_type} | {athletes.get(e.athlete_id, 'Atleta não informado')} | {e.zone or ''} | {e.result or ''}"
+        for e in events
+    ]) or "Nenhum evento registrado."
+
+    by_event = {}
+    for e in events:
+        by_event[e.event_type] = by_event.get(e.event_type, 0) + 1
+    resumo_txt = "\n".join([f"- {k}: {v}" for k, v in by_event.items()]) or "Nenhum resumo disponível."
+
+    return make_pdf_response(
+        "DataInsight Sports Analytics PRO",
+        "Relatório Técnico - Jogo",
+        [
+            ("Time", team.name if team else "Não informado"),
+            ("Data", match.match_date),
+            ("Adversário", match.opponent),
+            ("Competição", match.competition),
+            ("Local", match.location),
+            ("Formação", match.formation),
+            ("Placar", f"{match.goals_for} x {match.goals_against}"),
+        ],
+        [
+            ("Observações", match.notes),
+            ("Resumo dos Eventos", resumo_txt),
+            ("Eventos da Partida", eventos_txt),
+        ],
+        f"jogo_{match.id}.pdf"
+    )
+
+@app.get("/api/scout/pdf")
+def scout_pdf(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    events = owned(db.query(ScoutEvent), user).order_by(ScoutEvent.minute.asc()).all()
+    athletes = {a.id: a.name for a in owned(db.query(Athlete), user).all()}
+    matches = {m.id: f"{m.match_date} - {m.opponent}" for m in owned(db.query(Match), user).all()}
+
+    eventos_txt = "\n".join([
+        f"{e.minute}' | {matches.get(e.match_id, 'Jogo não informado')} | {athletes.get(e.athlete_id, 'Atleta não informado')} | {e.event_type} | {e.zone or ''} | {e.result or ''} | {e.notes or ''}"
+        for e in events
+    ]) or "Nenhum evento registrado."
+
+    by_event = {}
+    for e in events:
+        by_event[e.event_type] = by_event.get(e.event_type, 0) + 1
+    resumo_txt = "\n".join([f"- {k}: {v}" for k, v in by_event.items()]) or "Nenhum resumo disponível."
+
+    return make_pdf_response(
+        "DataInsight Sports Analytics PRO",
+        "Relatório Técnico - Scout",
+        [("Total de Eventos", len(events))],
+        [
+            ("Resumo por Tipo de Evento", resumo_txt),
+            ("Eventos Registrados", eventos_txt),
+        ],
+        "scout.pdf"
+    )
+
+@app.get("/api/opponents/{id}/pdf")
+def opponent_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    opponent = owned(db.query(OpponentAnalysis), user).filter(OpponentAnalysis.id == id).first()
+    if not opponent:
+        raise HTTPException(404, "Análise de adversário não encontrada")
+
+    return make_pdf_response(
+        "DataInsight Sports Analytics PRO",
+        "Relatório Técnico - Análise do Adversário",
+        [
+            ("Adversário", opponent.opponent),
+            ("Formação Base", opponent.base_formation),
+            ("Lado Forte", opponent.attack_side),
+        ],
+        [
+            ("Jogadores Destaque", opponent.strong_players),
+            ("Pontos Fortes", opponent.strengths),
+            ("Pontos Fracos", opponent.weaknesses),
+            ("Bola Parada Ofensiva", opponent.set_pieces_attack),
+            ("Bola Parada Defensiva", opponent.set_pieces_defense),
+            ("Como Faz Gols", opponent.how_scores),
+            ("Como Sofre Gols", opponent.how_concedes),
+        ],
+        f"adversario_{opponent.id}.pdf"
+    )
+
+@app.get("/api/gameplans/{id}/pdf")
+def gameplan_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    plan = owned(db.query(GamePlan), user).filter(GamePlan.id == id).first()
+    if not plan:
+        raise HTTPException(404, "Plano de jogo não encontrado")
+
+    return make_pdf_response(
+        "DataInsight Sports Analytics PRO",
+        "Relatório Técnico - Plano de Jogo",
+        [
+            ("Adversário", plan.opponent),
+            ("Formação Recomendada", plan.recommended_formation),
+        ],
+        [
+            ("Estratégia Defensiva", plan.defensive_strategy),
+            ("Estratégia Ofensiva", plan.offensive_strategy),
+            ("Marcação Individual", plan.individual_marking),
+            ("Plano de Bola Parada", plan.set_piece_plan),
+            ("Substituições Previstas", plan.substitutions),
+            ("Sugestão Inteligente", plan.ai_suggestion),
+        ],
+        f"plano_jogo_{plan.id}.pdf"
     )
 
 # DASHBOARD
