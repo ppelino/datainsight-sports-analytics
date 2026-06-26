@@ -206,6 +206,64 @@ def delete_scout(id: int, db: Session = Depends(get_db), user: User = Depends(ge
     db.delete(obj)
     db.commit()
     return {"ok": True}
+    
+# ========= EXPORTAR SCOUT CSV =========
+
+from fastapi.responses import StreamingResponse
+import csv
+
+@app.get("/api/scout/csv")
+def export_scout_csv(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+
+    eventos = owned(db.query(ScoutEvent), user).order_by(ScoutEvent.minute.asc()).all()
+
+    output = BytesIO()
+    text = output.write
+
+    import io
+
+    csv_buffer = io.StringIO()
+
+    writer = csv.writer(csv_buffer)
+
+    writer.writerow([
+        "Minuto",
+        "Atleta",
+        "Evento",
+        "Zona",
+        "Resultado",
+        "Observações"
+    ])
+
+    atletas = {
+        a.id: a.name
+        for a in owned(db.query(Athlete), user).all()
+    }
+
+    for e in eventos:
+
+        writer.writerow([
+            e.minute,
+            atletas.get(e.athlete_id, ""),
+            e.event_type,
+            e.zone,
+            e.result,
+            e.notes
+        ])
+
+    bytes_buffer = BytesIO(csv_buffer.getvalue().encode("utf-8-sig"))
+
+    return StreamingResponse(
+        bytes_buffer,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition":
+            "attachment; filename=scout.csv"
+        }
+    )    
 
 # ADVERSÁRIOS
 @app.get("/api/opponents")
