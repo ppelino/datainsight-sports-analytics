@@ -116,10 +116,17 @@
         <div id="matchList"></div>
     </section>
 
-    <section id="scout" class="page card hidden">
-        <h2>Scout da Partida</h2>
+   <section id="scout" class="page card hidden">
 
-        <form onsubmit="saveScout(event)">
+    <h2>Scout da Partida</h2>
+
+    <div style="margin-bottom:20px;">
+        <button type="button" onclick="baixarScoutCSV()">
+            📥 Exportar Scout CSV
+        </button>
+    </div>
+
+    <form onsubmit="saveScout(event)">
             <select name="match_id" required></select>
             <select name="athlete_id"></select>
 
