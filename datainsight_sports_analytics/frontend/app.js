@@ -503,5 +503,32 @@ async function loadDashboard() {
         </div>
     `;
 }
+async function baixarScoutCSV() {
+
+    const r = await fetch(`${API}/api/scout/csv`, {
+        headers: {
+            Authorization: 'Bearer ' + token
+        }
+    });
+
+    if (!r.ok) {
+        alert("Erro ao exportar CSV");
+        return;
+    }
+
+    const blob = await r.blob();
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+
+    a.href = url;
+    a.download = "Scout.csv";
+
+    a.click();
+
+    window.URL.revokeObjectURL(url);
+}
 
 boot();
+
