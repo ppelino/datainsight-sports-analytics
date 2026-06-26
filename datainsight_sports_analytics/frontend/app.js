@@ -167,6 +167,7 @@ async function loadTeams() {
             <small>${x.category || ''} - ${x.city || ''} - Técnico: ${x.coach || ''}</small>
             <p>${x.notes || ''}</p>
             <button onclick='setForm("#teams form", ${JSON.stringify(x)})'>Editar</button>
+            <button onclick="baixarTeamPDF(${x.id})">PDF</button>
             <button onclick="excluir('/api/teams/${x.id}','este time')">Excluir</button>
         </div>
     `).join('');
@@ -207,6 +208,7 @@ async function loadAthletes() {
                 <b>Melhorar:</b> ${x.weaknesses || ''}
             </p>
             <button onclick='setForm("#athletes form", ${JSON.stringify(x)})'>Editar</button>
+            <button onclick="baixarAthletePDF(${x.id})">PDF</button>
             <button onclick="excluir('/api/athletes/${x.id}','este atleta')">Excluir</button>
         </div>
     `).join('');
@@ -248,6 +250,7 @@ async function loadMatches() {
             <small>${x.competition || ''} | ${x.location || ''} | ${x.formation || ''}</small>
             <p>Placar: ${x.goals_for} x ${x.goals_against}<br>${x.notes || ''}</p>
             <button onclick='setForm("#matches form", ${JSON.stringify(x)})'>Editar</button>
+            <button onclick="baixarMatchPDF(${x.id})">PDF</button>
             <button onclick="excluir('/api/matches/${x.id}','este jogo')">Excluir</button>
         </div>
     `).join('');
@@ -329,6 +332,7 @@ async function loadOpponents() {
                 <b>Como sofre:</b> ${x.how_concedes || ''}
             </p>
             <button onclick='setForm("#opponents form", ${JSON.stringify(x)})'>Editar</button>
+            <button onclick="baixarOpponentPDF(${x.id})">PDF</button>
             <button onclick="excluir('/api/opponents/${x.id}','esta análise')">Excluir</button>
         </div>
     `).join('');
@@ -388,6 +392,48 @@ async function savePlan(e) {
 
     clearForm(form);
     refresh();
+}
+
+
+async function baixarPDF(path, nomeArquivo) {
+    const r = await fetch(`${API}${path}`, {
+        headers: {
+            'Authorization': 'Bearer ' + token
+        }
+    });
+
+    if (!r.ok) {
+        alert('Erro ao gerar PDF');
+        return;
+    }
+
+    const blob = await r.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function baixarTeamPDF(id) {
+    baixarPDF(`/api/teams/${id}/pdf`, `time_${id}.pdf`);
+}
+
+function baixarAthletePDF(id) {
+    baixarPDF(`/api/athletes/${id}/pdf`, `atleta_${id}.pdf`);
+}
+
+function baixarMatchPDF(id) {
+    baixarPDF(`/api/matches/${id}/pdf`, `jogo_${id}.pdf`);
+}
+
+function baixarOpponentPDF(id) {
+    baixarPDF(`/api/opponents/${id}/pdf`, `adversario_${id}.pdf`);
+}
+
+function baixarScoutPDF() {
+    baixarPDF('/api/scout/pdf', 'scout.pdf');
 }
 
 async function baixarPlanoPDF(id) {
