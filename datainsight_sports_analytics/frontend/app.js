@@ -493,19 +493,29 @@ async function loadDashboard() {
                 data: vals.length ? vals : [0]
             }]
         },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {display: false},
-                title: {
-                    display: true,
-                    text: 'Eventos de Scout por Tipo'
-                }
-            },
-            scales: {
-                y: {beginAtZero: true}
+     options: {
+    responsive: true,
+    maintainAspectRatio: false,
+
+    plugins: {
+        legend: {
+            display: false
+        },
+        title: {
+            display: true,
+            text: 'Eventos de Scout por Tipo'
+        }
+    },
+
+    scales: {
+        y: {
+            beginAtZero: true,
+            ticks: {
+                precision: 0
             }
         }
+    }
+} 
     });
 
     if (!document.querySelector('#dashExtras')) {
