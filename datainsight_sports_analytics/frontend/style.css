@@ -38,7 +38,7 @@ button:hover{filter:brightness(1.08)}
 
 .hidden{display:none!important}
 
-/* LOGIN CENTRALIZADO */
+/* LOGIN */
 #auth{
   width:420px;
   min-height:auto;
@@ -88,7 +88,7 @@ button:hover{filter:brightness(1.08)}
 
 #auth button{flex:1}
 
-/* SISTEMA LOGADO */
+/* SISTEMA */
 #app{
   display:flex;
   min-height:calc(100vh - 90px);
@@ -182,13 +182,17 @@ form button{grid-column:1/-1}
 .item small{color:#94a3b8}
 .item p{margin-top:10px;color:#cbd5e1}
 
+/* GRÁFICO DASHBOARD */
 canvas{
+  display:block;
+  width:100% !important;
+  height:320px !important;
+  max-height:320px !important;
   background:#020617;
   border:1px solid #1e293b;
   border-radius:18px;
   padding:20px;
   margin-top:20px;
-  max-height:320px;
 }
 
 /* RESPONSIVO */
