@@ -161,16 +161,42 @@ async function loadTeams() {
 
     opt('select[name="team_id"]', data, x => x.name);
 
-    $('#teamList').innerHTML = data.map(x => `
-        <div class="item">
-            <b>${x.name}</b><br>
-            <small>${x.category || ''} - ${x.city || ''} - Técnico: ${x.coach || ''}</small>
-            <p>${x.notes || ''}</p>
-            <button onclick='setForm("#teams form", ${JSON.stringify(x)})'>Editar</button>
-            <button onclick="baixarTeamPDF(${x.id})">PDF</button>
-            <button onclick="excluir('/api/teams/${x.id}','este time')">Excluir</button>
-        </div>
-    `).join('');
+$('#teamList').innerHTML = data.map(x => `
+<div class="item">
+
+    ${
+        x.logo_url
+        ? `<img
+              src="${x.logo_url}"
+              class="team-logo"
+              onerror="this.style.display='none'">`
+        : ''
+    }
+
+    <b>${x.name}</b><br>
+
+    <small>
+        ${x.category || ''} -
+        ${x.city || ''} -
+        Técnico: ${x.coach || ''}
+    </small>
+
+    <p>${x.notes || ''}</p>
+
+    <button onclick='setForm("#teams form", ${JSON.stringify(x)})'>
+        Editar
+    </button>
+
+    <button onclick="baixarTeamPDF(${x.id})">
+        PDF
+    </button>
+
+    <button onclick="excluir('/api/teams/${x.id}','este time')">
+        Excluir
+    </button>
+
+</div>
+`).join('');
 }
 
 async function saveTeam(e) {
