@@ -227,12 +227,28 @@ async function loadAthletes() {
 
     $('#athleteList').innerHTML = data.map(x => `
         <div class="item">
+
+            ${
+                x.photo_url
+                ? `<img src="${x.photo_url}" class="athlete-photo" onerror="this.style.display='none'">`
+                : ''
+            }
+
             <b>${x.name}</b><br>
-            <small>${x.position || ''} | ${x.dominant_foot || ''} | ${x.age || 0} anos | ${x.height || 0}m | ${x.weight || 0}kg</small>
+
+            <small>
+                ${x.position || ''} |
+                ${x.dominant_foot || ''} |
+                ${x.age || 0} anos |
+                ${x.height || 0}m |
+                ${x.weight || 0}kg
+            </small>
+
             <p>
                 <b>Fortes:</b> ${x.strengths || ''}<br>
                 <b>Melhorar:</b> ${x.weaknesses || ''}
             </p>
+
             <button onclick='setForm("#athletes form", ${JSON.stringify(x)})'>Editar</button>
             <button onclick="baixarAthletePDF(${x.id})">PDF</button>
             <button onclick="excluir('/api/athletes/${x.id}','este atleta')">Excluir</button>
