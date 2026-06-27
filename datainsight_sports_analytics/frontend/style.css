@@ -411,4 +411,14 @@ input[name="video_url"]{
     width:100%;
     text-align:center;
   }
+ .team-logo{
+    width:90px;
+    height:90px;
+    object-fit:contain;
+    display:block;
+    margin-bottom:15px;
+    border-radius:12px;
+    background:white;
+    padding:6px;
+} 
 }
