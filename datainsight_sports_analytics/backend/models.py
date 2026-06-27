@@ -1,5 +1,4 @@
 from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Text, DateTime
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
@@ -20,6 +19,7 @@ class Team(Base):
     category = Column(String(80), default="Livre")
     city = Column(String(120), default="")
     coach = Column(String(120), default="")
+    logo_url = Column(String(500), default="")
     notes = Column(Text, default="")
 
 class Athlete(Base):
@@ -33,6 +33,7 @@ class Athlete(Base):
     age = Column(Integer, default=0)
     height = Column(Float, default=0)
     weight = Column(Float, default=0)
+    photo_url = Column(String(500), default="")
     strengths = Column(Text, default="")
     weaknesses = Column(Text, default="")
 
@@ -48,6 +49,7 @@ class Match(Base):
     formation = Column(String(40), default="4-4-2")
     goals_for = Column(Integer, default=0)
     goals_against = Column(Integer, default=0)
+    video_url = Column(String(500), default="")
     notes = Column(Text, default="")
 
 class ScoutEvent(Base):
