@@ -1,22 +1,30 @@
 from fastapi.responses import StreamingResponse
 from io import BytesIO
+import csv
+import io
+import urllib.request
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+
 from xml.sax.saxutils import escape
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+
 from database import Base, engine, get_db
 from auth import hash_password, verify_password, create_token, get_current_user
 from models import User, Team, Athlete, Match, ScoutEvent, OpponentAnalysis, GamePlan
 from schemas import RegisterIn, LoginIn, TeamIn, AthleteIn, MatchIn, ScoutEventIn, OpponentIn, GamePlanIn
 
+
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="DataInsight Sports Analytics", version="1.1.0")
+app = FastAPI(title="DataInsight Sports Analytics", version="1.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,9 +34,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def root():
     return {"app": "DataInsight Sports Analytics", "status": "online"}
+
 
 @app.post("/api/register")
 def register(data: RegisterIn, db: Session = Depends(get_db)):
@@ -55,6 +65,7 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
         }
     }
 
+
 @app.post("/api/login")
 def login(data: LoginIn, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email.lower()).first()
@@ -72,6 +83,7 @@ def login(data: LoginIn, db: Session = Depends(get_db)):
         }
     }
 
+
 @app.post("/api/token")
 def token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username.lower()).first()
@@ -84,12 +96,15 @@ def token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "token_type": "bearer"
     }
 
+
 @app.get("/api/me")
 def me(user: User = Depends(get_current_user)):
     return {"id": user.id, "name": user.name, "email": user.email, "role": user.role}
 
+
 def owned(q, user):
     return q.filter_by(owner_id=user.id)
+
 
 def crud_create(model, payload, user, db):
     obj = model(**payload.model_dump(), owner_id=user.id)
@@ -97,6 +112,7 @@ def crud_create(model, payload, user, db):
     db.commit()
     db.refresh(obj)
     return obj
+
 
 def crud_update(model, obj_id, payload, user, db):
     obj = owned(db.query(model), user).filter(model.id == obj_id).first()
@@ -111,18 +127,22 @@ def crud_update(model, obj_id, payload, user, db):
     db.refresh(obj)
     return obj
 
+
 # TIMES
 @app.get("/api/teams")
 def list_teams(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return owned(db.query(Team), user).all()
 
+
 @app.post("/api/teams")
 def create_team(data: TeamIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_create(Team, data, user, db)
 
+
 @app.put("/api/teams/{id}")
 def update_team(id: int, data: TeamIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_update(Team, id, data, user, db)
+
 
 @app.delete("/api/teams/{id}")
 def delete_team(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -134,18 +154,22 @@ def delete_team(id: int, db: Session = Depends(get_db), user: User = Depends(get
     db.commit()
     return {"ok": True}
 
+
 # ATLETAS
 @app.get("/api/athletes")
 def list_athletes(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return owned(db.query(Athlete), user).all()
 
+
 @app.post("/api/athletes")
 def create_athlete(data: AthleteIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_create(Athlete, data, user, db)
 
+
 @app.put("/api/athletes/{id}")
 def update_athlete(id: int, data: AthleteIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_update(Athlete, id, data, user, db)
+
 
 @app.delete("/api/athletes/{id}")
 def delete_athlete(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -157,18 +181,22 @@ def delete_athlete(id: int, db: Session = Depends(get_db), user: User = Depends(
     db.commit()
     return {"ok": True}
 
+
 # JOGOS
 @app.get("/api/matches")
 def list_matches(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return owned(db.query(Match), user).order_by(Match.match_date.desc()).all()
 
+
 @app.post("/api/matches")
 def create_match(data: MatchIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_create(Match, data, user, db)
 
+
 @app.put("/api/matches/{id}")
 def update_match(id: int, data: MatchIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_update(Match, id, data, user, db)
+
 
 @app.delete("/api/matches/{id}")
 def delete_match(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -180,6 +208,7 @@ def delete_match(id: int, db: Session = Depends(get_db), user: User = Depends(ge
     db.commit()
     return {"ok": True}
 
+
 # SCOUT
 @app.get("/api/scout")
 def list_scout(match_id: int | None = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -190,13 +219,16 @@ def list_scout(match_id: int | None = None, db: Session = Depends(get_db), user:
 
     return q.order_by(ScoutEvent.minute.asc()).all()
 
+
 @app.post("/api/scout")
 def create_scout(data: ScoutEventIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_create(ScoutEvent, data, user, db)
 
+
 @app.put("/api/scout/{id}")
 def update_scout(id: int, data: ScoutEventIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_update(ScoutEvent, id, data, user, db)
+
 
 @app.delete("/api/scout/{id}")
 def delete_scout(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -207,27 +239,17 @@ def delete_scout(id: int, db: Session = Depends(get_db), user: User = Depends(ge
     db.delete(obj)
     db.commit()
     return {"ok": True}
-    
-# ========= EXPORTAR SCOUT CSV =========
 
-from fastapi.responses import StreamingResponse
-import csv
 
+# EXPORTAR SCOUT CSV
 @app.get("/api/scout/csv")
 def export_scout_csv(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-
     eventos = owned(db.query(ScoutEvent), user).order_by(ScoutEvent.minute.asc()).all()
 
-    output = BytesIO()
-    text = output.write
-
-    import io
-
     csv_buffer = io.StringIO()
-
     writer = csv.writer(csv_buffer)
 
     writer.writerow([
@@ -245,7 +267,6 @@ def export_scout_csv(
     }
 
     for e in eventos:
-
         writer.writerow([
             e.minute,
             atletas.get(e.athlete_id, ""),
@@ -261,23 +282,26 @@ def export_scout_csv(
         bytes_buffer,
         media_type="text/csv",
         headers={
-            "Content-Disposition":
-            "attachment; filename=scout.csv"
+            "Content-Disposition": "attachment; filename=scout.csv"
         }
-    )    
+    )
+
 
 # ADVERSÁRIOS
 @app.get("/api/opponents")
 def list_opponents(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return owned(db.query(OpponentAnalysis), user).all()
 
+
 @app.post("/api/opponents")
 def create_opponent(data: OpponentIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_create(OpponentAnalysis, data, user, db)
 
+
 @app.put("/api/opponents/{id}")
 def update_opponent(id: int, data: OpponentIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return crud_update(OpponentAnalysis, id, data, user, db)
+
 
 @app.delete("/api/opponents/{id}")
 def delete_opponent(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -289,10 +313,12 @@ def delete_opponent(id: int, db: Session = Depends(get_db), user: User = Depends
     db.commit()
     return {"ok": True}
 
+
 # PLANOS DE JOGO
 @app.get("/api/gameplans")
 def list_gameplans(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return owned(db.query(GamePlan), user).all()
+
 
 @app.post("/api/gameplans")
 def create_gameplan(data: GamePlanIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -320,6 +346,7 @@ def create_gameplan(data: GamePlanIn, db: Session = Depends(get_db), user: User 
     db.commit()
     db.refresh(obj)
     return obj
+
 
 @app.put("/api/gameplans/{id}")
 def update_gameplan(id: int, data: GamePlanIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -351,6 +378,7 @@ def update_gameplan(id: int, data: GamePlanIn, db: Session = Depends(get_db), us
     db.refresh(obj)
     return obj
 
+
 @app.delete("/api/gameplans/{id}")
 def delete_gameplan(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     obj = owned(db.query(GamePlan), user).filter(GamePlan.id == id).first()
@@ -361,12 +389,34 @@ def delete_gameplan(id: int, db: Session = Depends(get_db), user: User = Depends
     db.commit()
     return {"ok": True}
 
-# ========= RELATÓRIOS PDF =========
 
+# RELATÓRIOS PDF
 def safe_text(value):
-    return escape(str(value or "Não informado."))
+    return escape(str(value or "Não informado.")).replace("\n", "<br/>")
 
-def make_pdf_response(title_text, subtitle_text, info_rows, sections, filename):
+
+def pdf_image_from_url(url, width=85, height=85):
+    if not url:
+        return None
+
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = response.read()
+
+        img = Image(BytesIO(data), width=width, height=height)
+        img.hAlign = "CENTER"
+        return img
+
+    except Exception:
+        return None
+
+
+def make_pdf_response(title_text, subtitle_text, info_rows, sections, filename, image_url=None):
     buffer = BytesIO()
 
     doc = SimpleDocTemplate(
@@ -386,7 +436,7 @@ def make_pdf_response(title_text, subtitle_text, info_rows, sections, filename):
         fontSize=22,
         textColor=colors.HexColor("#0f766e"),
         alignment=1,
-        spaceAfter=14
+        spaceAfter=10
     )
 
     subtitle = ParagraphStyle(
@@ -405,9 +455,15 @@ def make_pdf_response(title_text, subtitle_text, info_rows, sections, filename):
     )
 
     story = []
+
     story.append(Paragraph("DataInsight Sports Analytics PRO", title))
     story.append(Paragraph(safe_text(subtitle_text), subtitle))
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 10))
+
+    img = pdf_image_from_url(image_url)
+    if img:
+        story.append(img)
+        story.append(Spacer(1, 14))
 
     if info_rows:
         info = [[safe_text(k), safe_text(v)] for k, v in info_rows]
@@ -444,6 +500,7 @@ def make_pdf_response(title_text, subtitle_text, info_rows, sections, filename):
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
+
 @app.get("/api/teams/{id}/pdf")
 def team_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     team = owned(db.query(Team), user).filter(Team.id == id).first()
@@ -453,8 +510,15 @@ def team_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_cu
     athletes = owned(db.query(Athlete), user).filter(Athlete.team_id == id).all()
     matches = owned(db.query(Match), user).filter(Match.team_id == id).all()
 
-    atletas_txt = "\n".join([f"- {a.name} | {a.position or 'posição não informada'}" for a in athletes]) or "Nenhum atleta cadastrado."
-    jogos_txt = "\n".join([f"- {m.match_date} | {m.opponent} | {m.goals_for} x {m.goals_against}" for m in matches]) or "Nenhum jogo cadastrado."
+    atletas_txt = "\n".join([
+        f"- {a.name} | {a.position or 'posição não informada'}"
+        for a in athletes
+    ]) or "Nenhum atleta cadastrado."
+
+    jogos_txt = "\n".join([
+        f"- {m.match_date} | {m.opponent} | {m.goals_for} x {m.goals_against}"
+        for m in matches
+    ]) or "Nenhum jogo cadastrado."
 
     return make_pdf_response(
         "DataInsight Sports Analytics PRO",
@@ -464,14 +528,18 @@ def team_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_cu
             ("Categoria", team.category),
             ("Cidade", team.city),
             ("Treinador", team.coach),
+            ("Total de atletas", len(athletes)),
+            ("Total de jogos", len(matches)),
         ],
         [
             ("Observações", team.notes),
             ("Atletas do Time", atletas_txt),
             ("Jogos do Time", jogos_txt),
         ],
-        f"time_{team.id}.pdf"
+        f"time_{team.id}.pdf",
+        getattr(team, "logo_url", "")
     )
+
 
 @app.get("/api/athletes/{id}/pdf")
 def athlete_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -485,7 +553,11 @@ def athlete_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get
     by_event = {}
     for e in events:
         by_event[e.event_type] = by_event.get(e.event_type, 0) + 1
-    resumo_eventos = "\n".join([f"- {k}: {v}" for k, v in by_event.items()]) or "Nenhum evento registrado."
+
+    resumo_eventos = "\n".join([
+        f"- {k}: {v}"
+        for k, v in by_event.items()
+    ]) or "Nenhum evento registrado."
 
     return make_pdf_response(
         "DataInsight Sports Analytics PRO",
@@ -498,14 +570,17 @@ def athlete_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get
             ("Idade", athlete.age),
             ("Altura", athlete.height),
             ("Peso", athlete.weight),
+            ("Eventos registrados", len(events)),
         ],
         [
             ("Pontos Fortes", athlete.strengths),
             ("Pontos a Melhorar", athlete.weaknesses),
             ("Resumo de Eventos de Scout", resumo_eventos),
         ],
-        f"atleta_{athlete.id}.pdf"
+        f"atleta_{athlete.id}.pdf",
+        getattr(athlete, "photo_url", "")
     )
+
 
 @app.get("/api/matches/{id}/pdf")
 def match_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -525,7 +600,11 @@ def match_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_c
     by_event = {}
     for e in events:
         by_event[e.event_type] = by_event.get(e.event_type, 0) + 1
-    resumo_txt = "\n".join([f"- {k}: {v}" for k, v in by_event.items()]) or "Nenhum resumo disponível."
+
+    resumo_txt = "\n".join([
+        f"- {k}: {v}"
+        for k, v in by_event.items()
+    ]) or "Nenhum resumo disponível."
 
     return make_pdf_response(
         "DataInsight Sports Analytics PRO",
@@ -538,14 +617,17 @@ def match_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_c
             ("Local", match.location),
             ("Formação", match.formation),
             ("Placar", f"{match.goals_for} x {match.goals_against}"),
+            ("Eventos registrados", len(events)),
         ],
         [
             ("Observações", match.notes),
             ("Resumo dos Eventos", resumo_txt),
             ("Eventos da Partida", eventos_txt),
         ],
-        f"jogo_{match.id}.pdf"
+        f"jogo_{match.id}.pdf",
+        getattr(team, "logo_url", "") if team else ""
     )
+
 
 @app.get("/api/scout/pdf")
 def scout_pdf(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -561,7 +643,11 @@ def scout_pdf(db: Session = Depends(get_db), user: User = Depends(get_current_us
     by_event = {}
     for e in events:
         by_event[e.event_type] = by_event.get(e.event_type, 0) + 1
-    resumo_txt = "\n".join([f"- {k}: {v}" for k, v in by_event.items()]) or "Nenhum resumo disponível."
+
+    resumo_txt = "\n".join([
+        f"- {k}: {v}"
+        for k, v in by_event.items()
+    ]) or "Nenhum resumo disponível."
 
     return make_pdf_response(
         "DataInsight Sports Analytics PRO",
@@ -573,6 +659,7 @@ def scout_pdf(db: Session = Depends(get_db), user: User = Depends(get_current_us
         ],
         "scout.pdf"
     )
+
 
 @app.get("/api/opponents/{id}/pdf")
 def opponent_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -600,6 +687,7 @@ def opponent_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(ge
         f"adversario_{opponent.id}.pdf"
     )
 
+
 @app.get("/api/gameplans/{id}/pdf")
 def gameplan_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     plan = owned(db.query(GamePlan), user).filter(GamePlan.id == id).first()
@@ -623,6 +711,7 @@ def gameplan_pdf(id: int, db: Session = Depends(get_db), user: User = Depends(ge
         ],
         f"plano_jogo_{plan.id}.pdf"
     )
+
 
 # DASHBOARD
 @app.get("/api/dashboard")
